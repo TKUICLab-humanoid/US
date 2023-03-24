@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(strategy)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+ add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -10,8 +10,10 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
 	cv_bridge 
 	message_generation
+	rospy
 	roscpp
 	roslib
+	rospy
 	sensor_msgs
 	std_msgs
 	tku_msgs
@@ -24,13 +26,9 @@ set(ROSCOMMUNICATION_LIBRARIES ${CATKIN_DEVEL_PREFIX}/lib/libroscommunication.so
 # find_package(Boost REQUIRED COMPONENTS system)
 
 ## Generate messages in the 'msg' folder
-add_message_files(DIRECTORY msg
-	FILES
-	HeadHV.msg
-	ObstacleData.msg
-	SoccerData.msg
-)
-generate_messages(DEPENDENCIES std_msgs)
+#add_message_files(DIRECTORY msg
+#	FILES
+#)
 ## Generate services in the 'srv' folder
 #add_service_files(DIRECTORY srv 
 #	FILES
@@ -47,24 +45,9 @@ generate_messages(DEPENDENCIES std_msgs)
 #generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(CATKIN_DEPENDS
- message_runtime
- std_msgs
- roscpp
+# std_msgs
+# roscpp
 )
 
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-)
 
-add_executable(strategymain
-				Kidsize_HuroCup/strategy_main.cpp
-				Kidsize_HuroCup/USinfo.cpp)
-add_dependencies(strategymain ${catkin_EXPORTED_TARGETS})
-target_link_libraries(strategymain ${catkin_LIBRARIES} ${TKU_LIBRARIES} ${ROSCOMMUNICATION_LIBRARIES})
 
-add_executable(imagemain
-				Kidsize_HuroCup/tracksoccer.cpp
-				Kidsize_HuroCup/USinfo.cpp)
-add_dependencies(imagemain ${catkin_EXPORTED_TARGETS})
-target_link_libraries(imagemain ${catkin_LIBRARIES} ${TKU_LIBRARIES} ${ROSCOMMUNICATION_LIBRARIES} ${OpenCV_LIBRARIES})
