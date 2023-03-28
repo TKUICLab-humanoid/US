@@ -10,6 +10,7 @@ import math
 def ball_img():
     color_XMax ,color_Xmin ,color_YMax ,color_Ymin ,color_X ,color_Y ,color_cnt= 0, 0, 0, 0, 0 ,0 ,0
     ball_yes = False
+    ball_size = 0
     print("ball size : ",max(send.color_mask_subject_size[5]))
     if max(send.color_mask_subject_size[5]) >350:
         ball_yes = True
@@ -20,16 +21,16 @@ def ball_img():
         color_Ymin = send.color_mask_subject_YMin[color['Red']][color_cnt]
         color_X = send.color_mask_subject_X[color['Red']][color_cnt]
         color_Y = send.color_mask_subject_Y[color['Red']][color_cnt]
-
+        ball_size = send.color_mask_subject_size[color['Red']][color_cnt]
     send.drawImageFunction(1,1,color_Xmin,color_XMax,color_Ymin,color_YMax,0,0,255)
-    return color_X,color_Y,ball_yes
+    return color_X,color_Y,ball_yes,ball_size
 
 
 def ball_find(head_x,head_status):
-    head_y_high = 2100
+    head_y_high = 1800
     head_y_low = 1500
-    head_x_MAX = 2600
-    head_x_min = 1400
+    head_x_MAX = 2250
+    head_x_min = 1750
     if head_status == 1:
         head_x = min(head_x,head_x_MAX)
         head_x += 10
@@ -52,13 +53,13 @@ def ball_find(head_x,head_status):
 
 def catch_target(color_X,color_Y,head_x,head_y):
     if color_X < 150 :
-        head_x += 20
+        head_x += 10
     elif color_X > 170 :
-        head_x -= 20
+        head_x -= 10
     if color_Y < 110:
-        head_y += 20
+        head_y += 10
     elif color_Y > 130:
-        head_y -= 20
+        head_y -= 10
     print(color_X,color_Y)
     print(head_x,head_y)
     send.sendHeadMotor(1,head_x,100)
@@ -67,8 +68,8 @@ def catch_target(color_X,color_Y,head_x,head_y):
     return head_x,head_y
 
 def ball_go(head_x,send_theta):
-    send_theta_min = -3
-    send_theta_MAX = 1
+    send_theta_min = -1
+    send_theta_MAX = 2
     if head_x < 2000 :
         send_theta -= 1
         send_theta = max(send_theta,send_theta_min)
@@ -79,7 +80,7 @@ def ball_go(head_x,send_theta):
         send_theta = 0
 
     print("send_theta",send_theta)
-    send.sendContinuousValue(100,0,0,send_theta,0)
+    send.sendContinuousValue(2000,0,0,send_theta,0)
     return send_theta
 
 if __name__ == '__main__':
@@ -103,24 +104,31 @@ if __name__ == '__main__':
             # send.drawImageFunction(4,0,0,320,120,120,0,0,0)
             # send.drawImageFunction(5,0,160,160,0,240,0,0,0)
     
-            if send.Web == True :#啟動電源與擺頭
+            if send.is_start == True :#啟動電源與擺頭
+                print("send_theta",send_theta)
                 if first_in == True:
                     send.sendBodyAuto(2000,0,0,0,1,0)
                     first_in = False
-                color_X,color_Y,ball_yes = ball_img()
+                color_X,color_Y,ball_yes,ball_size = ball_img()
                 if ball_yes != True:
                     print("status : ",status)
                     head_x ,head_status,head_y = ball_find(head_x,head_status)
                 else:
                     # send.sendBodyAuto(2000,0,0,0,1,0)
+                    if head_y <= 1200:
+                        send.sendBodyAuto(0,0,0,0,1,0)
+                        time.sleep(1)
+                        send.sendBodySector(111)
+                        time.sleep(10)
                     status = "go to ball"
                     print("status : ",status)
                     head_x,head_y = catch_target(color_X,color_Y,head_x,head_y)
                     send_theta = ball_go(head_x,send_theta)
+                    
 
-            if send.Web == False :
+            if send.is_start == False :
                 if first_in == False:
-                    send.sendBodyAuto(2000,0,0,0,1,0)
+                    # send.sendBodyAuto(2000,0,0,0,1,0)
                     send.sendHeadMotor(1,2048,100)
                     time.sleep(0.01)
                     send.sendHeadMotor(2,2048,100)
