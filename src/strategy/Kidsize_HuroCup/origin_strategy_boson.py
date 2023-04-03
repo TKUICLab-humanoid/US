@@ -2,10 +2,38 @@
 #coding=utf-8
 import rospy
 import numpy as np
+import cv2
 from Python_API import Sendmessage
 import time
 import timeit
 import math
+
+
+def ball_cv2():
+    ball_x , ball_y , ball_r= 0 ,0 ,0
+    img = send.rawimg.copy()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray,(5,5),0) 
+    # gray = cv2.bitwise_not(gray)
+    ret,thresh = cv2.threshold(blur,100,255,cv2.THRESH_BINARY) # 使用二值化閾值處理
+    circles = cv2.HoughCircles(thresh,cv2.HOUGH_GRADIENT,2,200,
+                            param1=33,param2=30,minRadius=3,maxRadius=15)        #thresh: 經過閾值處理的圖像
+                                                                                # cv2.HOUGH_GRADIENT: Hough圓檢測的方法
+                                                                                # 1: 圖像分辨率
+                                                                                # 20: 圓之間的最小距離
+                                                                                # param1: 檢測邊緣的閾值
+                                                                                # param2: 檢測圓心的閾值
+                                                                                # minRadius: 最小圓半徑
+                                                                                # maxRadius: 最大圓半徑
+
+    if circles is not None:
+        circles = np.round(circles[0, :]).astype("int")
+        for (x, y, r) in circles:
+            ball_x = x
+            ball_y = y
+            ball_r = r
+
+    return ball_x,ball_y,ball_r
 
 def ball_img():
     color_XMax ,color_Xmin ,color_YMax ,color_Ymin ,color_X ,color_Y ,color_cnt= 0, 0, 0, 0, 0 ,0 ,0
@@ -104,36 +132,38 @@ if __name__ == '__main__':
             # send.drawImageFunction(4,0,0,320,120,120,0,0,0)
             # send.drawImageFunction(5,0,160,160,0,240,0,0,0)
     
-            if send.is_start == True :#啟動電源與擺頭
-                print("send_theta",send_theta)
-                if first_in == True:
-                    send.sendBodyAuto(2000,0,0,0,1,0)
-                    first_in = False
-                color_X,color_Y,ball_yes,ball_size = ball_img()
-                if ball_yes != True:
-                    print("status : ",status)
-                    head_x ,head_status,head_y = ball_find(head_x,head_status)
-                else:
-                    # send.sendBodyAuto(2000,0,0,0,1,0)
-                    if head_y <= 1200:
-                        send.sendBodyAuto(0,0,0,0,1,0)
-                        time.sleep(1)
-                        send.sendBodySector(111)
-                        time.sleep(10)
-                    status = "go to ball"
-                    print("status : ",status)
-                    head_x,head_y = catch_target(color_X,color_Y,head_x,head_y)
-                    send_theta = ball_go(head_x,send_theta)
-                    
+            if send.Web == True :#啟動電源與擺頭
+                # print("send_theta",send_theta)
+                # if first_in == True:
+                #     send.sendBodyAuto(2000,0,0,0,1,0)
+                #     first_in = False
+                # color_X,color_Y,ball_yes,ball_size = ball_img()
+                # if ball_yes != True:
+                #     print("status : ",status)
+                #     head_x ,head_status,head_y = ball_find(head_x,head_status)
+                # else:
+                #     # send.sendBodyAuto(2000,0,0,0,1,0)
+                #     if head_y <= 1200:
+                #         send.sendBodyAuto(0,0,0,0,1,0)
+                #         time.sleep(1)
+                #         send.sendBodySector(111)
+                #         time.sleep(10)
+                #     status = "go to ball"
+                #     print("status : ",status)
+                #     head_x,head_y = catch_target(color_X,color_Y,head_x,head_y)
+                #     send_theta = ball_go(head_x,send_theta)
+                ball_x,ball_y,ball_r = ball_cv2()    
+                print(ball_x,ball_y,ball_r )
+                send.drawImageFunction(1,1,ball_x-ball_r,ball_x+ball_r,ball_y-ball_r,ball_y+ball_r,0,255,0)
 
-            if send.is_start == False :
-                if first_in == False:
-                    # send.sendBodyAuto(2000,0,0,0,1,0)
-                    send.sendHeadMotor(1,2048,100)
-                    time.sleep(0.01)
-                    send.sendHeadMotor(2,2048,100)
-                    time.sleep(0.01)
-                    first_in = True
+            if send.Web == False :
+                # if first_in == False:
+                #     # send.sendBodyAuto(2000,0,0,0,1,0)
+                #     send.sendHeadMotor(1,2048,100)
+                #     time.sleep(0.01)
+                #     send.sendHeadMotor(2,2048,100)
+                #     time.sleep(0.01)
+                #     first_in = True
                 print('aa')
 
 

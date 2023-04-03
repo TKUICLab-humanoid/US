@@ -26,17 +26,7 @@ class Sendmessage:
         self.Label_Model = [0 for i in range(320*240)]
         # self.Label_Model = np.zeros([320*240])
         self.bridge = CvBridge()
-        self.color_mask_subject_cnts = [0 for i in range(8)]
-        self.color_mask_subject_X = [[0]*320 for i in range(8)]
-        self.color_mask_subject_Y = [[0]*320 for i in range(8)]
-        self.color_mask_subject_XMin = [[0]*320 for i in range(8)]
-        self.color_mask_subject_XMax = [[0]*320 for i in range(8)]
-        self.color_mask_subject_YMax = [[0]*320 for i in range(8)]
-        self.color_mask_subject_YMin = [[0]*320 for i in range(8)]
-        self.color_mask_subject_Width = [[0]*320 for i in range(8)]
-        self.color_mask_subject_Height = [[0]*320 for i in range(8)]
-        self.color_mask_subject_size = [[0]*320 for i in range(8)]
-        self.imu_value_Roll = 0
+        
         self.imu_value_Yaw = 0
         self.imu_value_Pitch = 0
         self.DIOValue = 0x00
@@ -51,9 +41,9 @@ class Sendmessage:
         aaaa = rospy.init_node('talker', anonymous=True , log_level=rospy.DEBUG)
         object_list_sub = rospy.Subscriber("/Object/List",ObjectList, self.getObject)
         label_model_sub = rospy.Subscriber("/LabelModel/List",LabelModelObjectList, self.getLabelModel)
-        #compress_image_sub = rospy.Subscriber("compress_image",Image, self.catchImage)
-        #image_raw_sub = rospy.Subscriber("colormodel_image",Image, self.RawImage)
-        # origin_image_sub = rospy.Subscriber("orign_image",Image, self.OriginImage)
+        # compress_image_sub = rospy.Subscriber("compress_image",Image, self.catchImage)
+        image_raw_sub = rospy.Subscriber("colormodel_image",Image, self.RawImage)
+        origin_image_sub = rospy.Subscriber("orign_image",Image, self.OriginImage)
         start_sub = rospy.Subscriber("/web/start",Bool, self.startFunction)
         DIO_ack_sub = rospy.Subscriber("/package/FPGAack",Int16, self.DIOackFunction)
         sensor_sub = rospy.Subscriber("/package/sensorpackage",SensorPackage, self.sensorPackageFunction)
@@ -142,18 +132,29 @@ class Sendmessage:
                 send.drawImageFunction(5,1,send.yolo_XMin,send.yolo_XMax,send.yolo_YMin,send.yolo_YMax,0,0,255)
                 print(send.yolo_Label)
             
-    #def catchImage(self,msg):
+    # def catchImage(self,msg):
     #    self.cvimg = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-    #def RawImage(self,msg):
-    #    self.rawimg = self.bridge.imgmsg_to_cv2(msg,"bgr8")
-    # def OriginImage(self,msg):
-    #    self.originimg = self.bridge.imgmsg_to_cv2(msg,"bgr8")
+    def RawImage(self,msg):
+       self.rawimg = self.bridge.imgmsg_to_cv2(msg,"bgr8")
+    def OriginImage(self,msg):
+       self.originimg = self.bridge.imgmsg_to_cv2(msg,"bgr8")
     def startFunction(self,msg):
         self.Web = msg.data
     def getLabelModel(self,msg):
         self.Label_Model = msg.LabelModel    
     def getObject(self,msg):
         time_start = time.time()
+        self.color_mask_subject_cnts = [0 for i in range(8)]
+        self.color_mask_subject_X = [[0]*320 for i in range(8)]
+        self.color_mask_subject_Y = [[0]*320 for i in range(8)]
+        self.color_mask_subject_XMin = [[0]*320 for i in range(8)]
+        self.color_mask_subject_XMax = [[0]*320 for i in range(8)]
+        self.color_mask_subject_YMax = [[0]*320 for i in range(8)]
+        self.color_mask_subject_YMin = [[0]*320 for i in range(8)]
+        self.color_mask_subject_Width = [[0]*320 for i in range(8)]
+        self.color_mask_subject_Height = [[0]*320 for i in range(8)]
+        self.color_mask_subject_size = [[0]*320 for i in range(8)]
+        self.imu_value_Roll = 0
         for i in range (8):
             self.color_mask_subject_cnts[i] = msg.Objectlist[i].cnt
             for j in range (self.color_mask_subject_cnts[i]):
