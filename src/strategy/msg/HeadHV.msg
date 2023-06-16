@@ -1,2 +1,0 @@
-int16 HeadHorizontal
-int16 HeadVertical
