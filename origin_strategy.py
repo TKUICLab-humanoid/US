@@ -38,8 +38,8 @@ HEAD_Y_LOW = 1500
 HEAD_X_MAX = 2250
 HEAD_X_MIN = 1750
 
-SEND_THETA_MIN = -3
-SEND_THETA_MAX = 1
+SEND_THETA_MIN = -4
+SEND_THETA_MAX = 4
 
 send = Sendmessage()
 
@@ -77,9 +77,9 @@ class United_Soccer:
             send.sendContinuousValue(1000, 0, 0, -(self.obs.center.y) // 40, 0)
 
     def catch_ball(self):
-        if self.ball.center.x < 150:
+        if self.ball.center.x < 120:
             self.head_x += 10
-        if self.ball.center.x > 170:
+        if self.ball.center.x > 140:
             self.head_x -= 10
         if self.ball.center.y < 110:
             self.head_y += 10
@@ -104,9 +104,9 @@ class United_Soccer:
         send.sendContinuousValue(2000, 0, 0, self.send_theta, 0)
 
     def main(self):
-        if send.Web:#啟動電源與擺頭
+        if send.is_start:#啟動電源與擺頭
             if self.first_in:
-                send.sendBodyAuto(2000, 0, 0, 0, 1, 0)
+                send.sendBodyAuto(1000, 0, 0, 0, 1, 0)
                 self.first_in = False
 
             self.ball.update()
@@ -119,18 +119,20 @@ class United_Soccer:
                 else:
                     rospy.loginfo("find_ball")
                     self.ball_find()
+                    send.sendContinuousValue(1000, 0, 0, 0, 0)
             else:
-                if self.head_y <= 1200:
+                if self.head_y <= 1250:
                     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
                     time.sleep(1)
                     send.sendBodySector(111)
-                    time.sleep(10)
+                    time.sleep(18)
+                    self.init()
                 rospy.loginfo("goto_ball")
                 self.catch_ball()
                 self.ball_go()
 
 
-        if not send.Web:
+        if not send.is_start:
             if not self.first_in:
                 send.sendBodyAuto(2000, 0, 0, 0, 1, 0)
                 send.sendHeadMotor(1, 2048, 100)
