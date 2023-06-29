@@ -6,33 +6,6 @@ import cv2
 from Python_API import Sendmessage
 import time
 
-
-# def ball_cv2():
-#     ball_x , ball_y , ball_r= 0 ,0 ,0
-#     img = send.rawimg.copy()
-#     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-#     blur = cv2.GaussianBlur(gray,(5,5),0) 
-#     # gray = cv2.bitwise_not(gray)
-#     ret,thresh = cv2.threshold(blur,100,255,cv2.THRESH_BINARY) # 使用二值化閾值處理
-#     circles = cv2.HoughCircles(thresh,cv2.HOUGH_GRADIENT,2,200,
-#                             param1=33,param2=16,minRadius=3,maxRadius=15)        #thresh: 經過閾值處理的圖像
-#                                                                                 # cv2.HOUGH_GRADIENT: Hough圓檢測的方法
-#                                                                                 # 1: 圖像分辨率
-#                                                                                 # 20: 圓之間的最小距離
-#                                                                                 # param1: 檢測邊緣的閾值
-#                                                                                 # param2: 檢測圓心的閾值
-#                                                                                 # minRadius: 最小圓半徑
-#                                                                                 # maxRadius: 最大圓半徑
-
-#     if circles is not None:
-#         circles = np.round(circles[0, :]).astype("int")
-#         for (x, y, r) in circles:
-#             ball_x = x
-#             ball_y = y
-#             ball_r = r
-
-#     return ball_x,ball_y,ball_r
-
 HEAD_Y_HIGH = 1800
 HEAD_Y_LOW = 1500
 HEAD_X_MAX = 2250
@@ -125,7 +98,7 @@ class United_Soccer:
                     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
                     time.sleep(1)
                     send.sendBodySector(111)
-                    time.sleep(18)
+                    time.sleep(4)
                     self.init()
                 rospy.loginfo("goto_ball")
                 self.catch_ball()
@@ -177,10 +150,11 @@ class ObjectInfo:
         self.find_object = update_strategy[object_type]
 
     def get_obstacle_object(self):
-        max_object_size = max(send.color_mask_subject_size[self.color])
-        max_object_idx = send.color_mask_subject_size[self.color].index(max_object_size)
+        if send.color_mask_subject_size[self.color] != []:
+            max_object_size = max(send.color_mask_subject_size[self.color])
+            max_object_idx = send.color_mask_subject_size[self.color].index(max_object_size)
 
-        return max_object_idx if max_object_size > 10000 else None
+            return max_object_idx if max_object_size > 15000 else None
 
     def get_ball_object(self):
 
