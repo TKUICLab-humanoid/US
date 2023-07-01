@@ -20,7 +20,8 @@ class United_Soccer:
     def __init__(self):
         self.obs = ObjectInfo('Blue', 'Obstacle')
         self.ball = ObjectInfo('Red', 'Ball')
-
+        self.head_x = 1400
+        self.head_y = 2048
         self.init()
 
     def ball_find(self):
@@ -64,6 +65,7 @@ class United_Soccer:
         send.sendHeadMotor(2, self.head_y, 100)
         time.sleep(0.01)
 
+
     def ball_go(self):
         if self.head_x < 2000:
             self.send_theta -= 1
@@ -76,6 +78,36 @@ class United_Soccer:
         rospy.loginfo(f'send_theta = {self.send_theta}')
         send.sendContinuousValue(2000, 0, 0, self.send_theta, 0)
 
+    def attack_obs(self):
+        self.head_x = 2250
+        self.head_y = 1800  
+        send.sendHeadMotor(1, self.head_x, 100)
+        send.sendHeadMotor(2, self.head_y, 100)
+        time.sleep(1)
+        print('1')
+        self.obs.update()
+        if self.obs.get_target:
+
+            if self.obs.edge_max.x < 160:
+                # send.sendBodySector(2222)
+                time.sleep(5)
+                self.kick = True
+                rospy.loginfo('黃金右腳')
+        else:
+            self.head_x = 1750
+            self.head_y = 1800 
+            send.sendHeadMotor(1, self.head_x, 100)
+            send.sendHeadMotor(2, self.head_y, 100)
+            time.sleep(1)
+            print('2')
+            self.obs.update()
+            if self.obs.get_target:
+                if self.obs.edge_min.x > 160:
+                    send.sendBodySector(1111)
+                    time.sleep(5)
+                    self.kick = True
+                    rospy.loginfo('黃金左腳')
+
     def main(self):
         if send.is_start:#啟動電源與擺頭
             if self.first_in:
@@ -86,7 +118,7 @@ class United_Soccer:
             self.obs.update()
             rospy.loginfo(f'send_theta = {self.send_theta}')
             if not self.ball.get_target:
-                if self.obs.get_target:
+                if self.obs.get_target and self.obs.target_size > 16000:
                     rospy.loginfo("avoid_obs")
                     self.obs_find()
                 else:
@@ -94,11 +126,16 @@ class United_Soccer:
                     self.ball_find()
                     send.sendContinuousValue(1000, 0, 0, 0, 0)
             else:
+                print("有球")
                 if self.head_y <= 1250:
                     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
                     time.sleep(1)
-                    send.sendBodySector(111)
-                    time.sleep(4)
+                    self.attack_obs()
+                    if not self.kick:
+                        send.sendBodySector(111)
+                        time.sleep(4)
+                        self.head_x = 1400
+                        self.head_y = 2048
                     self.init()
                 rospy.loginfo("goto_ball")
                 self.catch_ball()
@@ -113,14 +150,14 @@ class United_Soccer:
                 send.sendHeadMotor(2, 2048, 100)
                 time.sleep(0.01)
                 self.first_in = True
-            rospy.loginfo('aa')
+                rospy.loginfo('stop')
+            # self.obs.update()
 
     def init(self):
-        self.head_x = 1400
-        self.head_y = 2048
         self.send_theta = 0
         self.head_status = "High"
         self.first_in = True
+        self.kick = False
 
 
 class Coordinate:
@@ -154,7 +191,7 @@ class ObjectInfo:
             max_object_size = max(send.color_mask_subject_size[self.color])
             max_object_idx = send.color_mask_subject_size[self.color].index(max_object_size)
 
-            return max_object_idx if max_object_size > 15000 else None
+            return max_object_idx if max_object_size > 5000 else None
 
     def get_ball_object(self):
 
@@ -168,7 +205,7 @@ class ObjectInfo:
 
     def update(self):
         object_idx = self.find_object()
-
+        rospy.logdebug("抓抓")
         if object_idx is not None:
             self.get_target = True
             self.edge_max.x = send.color_mask_subject_XMax[self.color][object_idx]
@@ -180,6 +217,8 @@ class ObjectInfo:
             self.target_size = send.color_mask_subject_size[self.color][object_idx]
 
             rospy.loginfo(self.target_size)
+            rospy.loginfo(self.edge_max.x )
+            rospy.loginfo(self.edge_min.x )
             rospy.logdebug(abs(abs(self.edge_max.x - self.edge_min.x) - abs(self.edge_max.y - self.edge_min.y)))
             send.drawImageFunction(1, 1, self.edge_min.x, self.edge_max.x, self.edge_min.y, self.edge_max.y, 0, 0, 255)
         else:
@@ -187,7 +226,7 @@ class ObjectInfo:
 
 
 if __name__ == '__main__':
-
+    rospy.init_node('talker', anonymous=True , log_level=rospy.DEBUG)
     try:
         strategy = United_Soccer()
         r = rospy.Rate(20)
