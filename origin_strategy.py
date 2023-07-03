@@ -6,10 +6,10 @@ import cv2
 from Python_API import Sendmessage
 import time
 
-HEAD_Y_HIGH = 1800
-HEAD_Y_LOW = 1500
-HEAD_X_MAX = 2350
-HEAD_X_MIN = 1650
+HEAD_Y_HIGH = 1700
+HEAD_Y_LOW = 1375
+HEAD_X_MAX = 2700
+HEAD_X_MIN = 1400
 
 SEND_THETA_MIN = -4
 SEND_THETA_MAX = 4
@@ -28,44 +28,47 @@ class United_Soccer:
     def ball_find(self):
         if self.head_status == "Low":
             self.head_x = max(self.head_x, HEAD_X_MIN)
-            self.head_x -= 10
+            self.head_x -= 20
             if self.head_x <= HEAD_X_MIN:                #到達臨界值換狀態-->變成低頭
                 self.head_status = "High"
+            rospy.logdebug(f'低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭')
             send.sendHeadMotor(1, self.head_x, 100)
-            send.sendHeadMotor(2, HEAD_Y_HIGH, 50)
+            send.sendHeadMotor(2, HEAD_Y_LOW, 50)
             time.sleep(0.01)
         elif self.head_status == "High":
             self.head_x = min(self.head_x, HEAD_X_MAX)
-            self.head_x += 10
+            self.head_x += 20
             if self.head_x >= HEAD_X_MAX:                #到達臨界值換狀態-->變成抬頭
                 self.head_status = "Low"
+            rospy.logdebug(f'抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬')
             send.sendHeadMotor(1, self.head_x, 100)
-            send.sendHeadMotor(2, HEAD_Y_LOW, 50)
+            send.sendHeadMotor(2, HEAD_Y_HIGH, 50)
             time.sleep(0.01)
 
     def obs_find(self):
         print("ooooooooooooooooooooooooooooooooo")
         send.sendHeadMotor(1, 2048, 100)
         send.sendHeadMotor(2, 1800, 100)
-        if self.obs.center.y >160:
-            send.sendContinuousValue(1000, 0, 0, (self.obs.center.y - 160) // 40, 0)
+        if self.obs.center.x >160:
+            send.sendContinuousValue(1000, 0, 0, (self.obs.center.x - 160) // 40, 0)
         else:
-            send.sendContinuousValue(1000, 0, 0, -(self.obs.center.y) // 40, 0)
+            send.sendContinuousValue(1000, 0, 0, -(self.obs.center.x) // 40, 0)
 
     def catch_ball(self):
         if self.ball.center.x < 125:
-            self.head_x += 10
+            self.head_x += 8
         if self.ball.center.x > 145:
-            self.head_x -= 10
+            self.head_x -= 8
         if self.ball.center.y < 110:
-            self.head_y += 10
+            self.head_y += 8
         if self.ball.center.y > 130:
-            self.head_y -= 10
+            self.head_y -= 8
+        self.head_status = "Low"
         rospy.logdebug(f'color_x = {self.ball.center.x} , color_y = {self.ball.center.y}')
         rospy.loginfo(f'head_x = {self.head_x} , head_y = {self.head_y}')
         send.sendHeadMotor(1, self.head_x, 100)
         send.sendHeadMotor(2, self.head_y, 100)
-        time.sleep(0.01)
+        # time.sleep(0.01)
 
 
     def ball_go(self):
@@ -141,7 +144,7 @@ class United_Soccer:
                     self.ball_find()
                     send.sendContinuousValue(1000, 0, 0, 0, 0)
             else:
-                if self.head_y <= 1280:
+                if self.head_y <= 1305:
                     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
                     time.sleep(1)
                     self.attack_obs()
