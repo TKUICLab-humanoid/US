@@ -34,7 +34,7 @@ class United_Soccer:
             rospy.logdebug(f'低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭')
             send.sendHeadMotor(1, self.head_x, 100)
             send.sendHeadMotor(2, HEAD_Y_HIGH, 50)
-            time.sleep(0.01)
+            # time.sleep(0.01)
         elif self.head_status == "High":
             self.head_x = min(self.head_x, HEAD_X_MAX)
             self.head_x += 20
@@ -43,8 +43,9 @@ class United_Soccer:
             rospy.logdebug(f'抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬')
             send.sendHeadMotor(1, self.head_x, 100)
             send.sendHeadMotor(2, HEAD_Y_LOW, 50)
-            time.sleep(0.01)
-
+            # time.sleep(0.01)
+        self.conut += 1
+        print("count = ", self.conut)
     def obs_find(self):
         print("ooooooooooooooooooooooooooooooooo")
         send.sendHeadMotor(1, 2048, 100)
@@ -55,6 +56,7 @@ class United_Soccer:
             send.sendContinuousValue(1000, 0, 0, -(self.obs.center.x) // 40, 0)
 
     def catch_ball(self):
+        self.conut = 0
         if self.ball.center.x < 150:
             self.head_x += 5
         if self.ball.center.x > 170:
@@ -117,18 +119,18 @@ class United_Soccer:
         if send.is_start:#啟動電源與擺頭
             if self.first_in:
                 send.sendSensorReset(1, 1, 1)
-                send.sendBodyAuto(1000, 0, 0, 0, 1, 0)
+                send.sendBodyAuto(1500, 0, 0, 0, 1, 0)
                 self.first_in = False
                 if send.DIOValue == 25 and not self.preturn:
                     send.sendContinuousValue(3500, 0, 0, 0, 0)
                     time.sleep(15)
-                    while send.imu_value_Yaw < 80:
+                    while send.imu_value_Yaw < 45:
                         send.sendContinuousValue(0, 0, 0, 5, 0)
                     self.preturn = True
                 elif send.DIOValue == 27 and not self.preturn:
                     send.sendContinuousValue(3500, 0, 0, 0, 0)
                     time.sleep(15)
-                    while send.imu_value_Yaw > -80:
+                    while send.imu_value_Yaw > -45:
                         send.sendContinuousValue(0, 0, 0, -5, 0)        
                     self.preturn = True
             self.ball.update()
@@ -142,7 +144,7 @@ class United_Soccer:
                 else:
                     rospy.loginfo("find_ball")
                     self.ball_find()
-                    send.sendContinuousValue(1000, 0, 0, 0, 0)
+                    send.sendContinuousValue(1500, 0, 0, 0, 0)
             else:
                 if self.head_y <= 1305:
                     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
@@ -165,8 +167,34 @@ class United_Soccer:
                 rospy.loginfo("goto_ball")
                 self.catch_ball()
                 self.ball_go()
-
-
+            if send.imu_value_Pitch > 15:
+                send.sendHeadMotor(1, 2048, 0)
+                send.sendHeadMotor(2, 2420, 0)
+                print("forwdddddddddddddddddddddd")
+                send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+                time.sleep(1.5)
+                send.sendBodySector(1212)
+                time.sleep(19)
+                send.sendBodySector(29)
+                time.sleep(0.01)
+                send.sendBodySector(1)
+                time.sleep(0.01)
+                self.init()
+            elif send.imu_value_Pitch < -15:
+                send.sendHeadMotor(1, 2048, 0)
+                send.sendHeadMotor(2, 2420, 0)
+                print("backkkkkkkkkkkkkkkkkkkkkkkkkk")
+                send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+                time.sleep(1.5)
+                send.sendBodySector(1211)
+                time.sleep(10)
+                send.sendBodySector(29)
+                time.sleep(0.01)
+                send.sendBodySector(1)
+                time.sleep(0.01)
+                self.init()
+            if self.conut > 1000:
+                send.sendContinuousValue(1500, 0, 0, -4, 0)
         if not send.is_start:
             if not self.first_in:
                 send.sendBodyAuto(2000, 0, 0, 0, 1, 0)
@@ -177,13 +205,14 @@ class United_Soccer:
                 self.first_in = True
                 self.preturn = False
                 rospy.loginfo('stop')
-            self.ball.update()
+            # self.ball.update()
 
     def init(self):
         self.send_theta = 0
         self.head_status = "Low"
         self.first_in = True
         self.kick = False
+        self.conut = 0
 
 
 class Coordinate:
