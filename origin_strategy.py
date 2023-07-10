@@ -20,29 +20,29 @@ class United_Soccer:
     def __init__(self):
         self.obs = ObjectInfo('Blue', 'Obstacle')
         self.ball = ObjectInfo('Red', 'Ball')
-        self.head_x = 1400
-        self.head_y = 2048
+        self.head_x = 2700
+        self.head_y = 1600
         self.preturn = False
         self.init()
 
     def ball_find(self):
         if self.head_status == "Low":
-            self.head_x = max(self.head_x, HEAD_X_MIN)
             self.head_x -= 20
+            self.head_x = max(self.head_x, HEAD_X_MIN)
             if self.head_x <= HEAD_X_MIN:                #到達臨界值換狀態-->變成低頭
                 self.head_status = "High"
             rospy.logdebug(f'低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭低頭')
             send.sendHeadMotor(1, self.head_x, 100)
-            send.sendHeadMotor(2, HEAD_Y_HIGH, 50)
+            send.sendHeadMotor(2, HEAD_Y_LOW, 50)
             # time.sleep(0.01)
         elif self.head_status == "High":
-            self.head_x = min(self.head_x, HEAD_X_MAX)
             self.head_x += 20
+            self.head_x = min(self.head_x, HEAD_X_MAX)
             if self.head_x >= HEAD_X_MAX:                #到達臨界值換狀態-->變成抬頭
                 self.head_status = "Low"
             rospy.logdebug(f'抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬頭抬')
             send.sendHeadMotor(1, self.head_x, 100)
-            send.sendHeadMotor(2, HEAD_Y_LOW, 50)
+            send.sendHeadMotor(2, HEAD_Y_HIGH, 50)
             # time.sleep(0.01)
         self.conut += 1
         print("count = ", self.conut)
@@ -51,10 +51,11 @@ class United_Soccer:
         send.sendHeadMotor(1, 2048, 100)
         send.sendHeadMotor(2, 1800, 100)
         if self.obs.center.x >160:
-            send.sendContinuousValue(1000, 0, 0, (self.obs.center.x - 160) // 40, 0)
+            send.sendContinuousValue(0, (self.obs.center.x - 160)*15, 0, 0, 0)
+            print(self.obs.center.x - 160)
         else:
-            send.sendContinuousValue(1000, 0, 0, -(self.obs.center.x) // 40, 0)
-
+            send.sendContinuousValue(0, -(self.obs.center.x)*15, 0, 0, 0)
+            print(-self.obs.center.x)
     def catch_ball(self):
         self.conut = 0
         if self.ball.center.x < 150:
@@ -63,9 +64,10 @@ class United_Soccer:
             self.head_x -= 5
         if self.ball.center.y < 110:
             self.head_y += 5
+            self.head_y = min(self.head_y, HEAD_Y_HIGH)
         if self.ball.center.y > 130:
             self.head_y -= 5
-        self.head_status = "High"
+        # self.head_status = "High"
         rospy.logdebug(f'color_x = {self.ball.center.x} , color_y = {self.ball.center.y}')
         rospy.loginfo(f'head_x = {self.head_x} , head_y = {self.head_y}')
         send.sendHeadMotor(1, self.head_x, 100)
@@ -138,7 +140,7 @@ class United_Soccer:
             rospy.loginfo(f'obs_size ={self.obs.target_size}')
             rospy.loginfo(f'send_theta = {self.send_theta}')
             if not self.ball.get_target:
-                if self.obs.get_target and self.obs.target_size > 30000:
+                if self.obs.get_target and self.obs.target_size > 22000:
                     # rospy.loginfo("avoid_obs")
                     self.obs_find()
                 else:
