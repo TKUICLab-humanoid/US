@@ -1,0 +1,5 @@
+train: /home/yolov5/data/US_door/train/images
+val: /home/yolov5/data/US_door/val/images
+
+nc: 2
+names: ['reddoor','ball']
