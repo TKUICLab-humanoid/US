@@ -19,10 +19,11 @@ send = Sendmessage()
 class United_Soccer:
     def __init__(self):
         self.obs = ObjectInfo('Blue', 'Obstacle')
-        self.ball = ObjectInfo('Red', 'Ball')
+        self.ball = ObjectInfo('Orange', 'Ball')
         self.head_x = 2700
         self.head_y = 1600
         self.preturn = False
+        self.body_auto = False
         self.init()
 
     def ball_find(self):
@@ -98,8 +99,8 @@ class United_Soccer:
         if self.obs.get_target:
 
             if self.obs.edge_min.x < 200:
-                send.sendBodySector(111)
-                time.sleep(5.5)
+                send.sendBodySector(1002)
+                # time.sleep(10)
                 self.kick = True
                 rospy.loginfo('黃金右腳')
         else:
@@ -112,37 +113,48 @@ class United_Soccer:
             self.obs.update()
             if self.obs.get_target:
                 if self.obs.edge_max.x > 120:
-                    send.sendBodySector(1111)
-                    time.sleep(5.5)
+                    send.sendBodySector(2002)
                     self.kick = True
                     rospy.loginfo('黃金左腳')
+        time.sleep(10)
+
+    def walk_switch(self):
+        rospy.sleep(0.5)
+        send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+        if self.body_auto:
+            self.body_auto = False
+        else:
+            self.body_auto = True
 
     def main(self):
         if send.is_start:#啟動電源與擺頭
             if self.first_in:
                 send.sendSensorReset(1, 1, 1)
-                send.sendBodyAuto(1500, 0, 0, 0, 1, 0)
+                # send.sendBodyAuto(1500, 0, 0, 0, 1, 0)
+                if not self.body_auto:
+                    self.walk_switch()
                 # time.sleep(1)
                 self.first_in = False
-                if send.DIOValue == 25 and not self.preturn:
+                if send.DIOValue == 31 and not self.preturn:
                     send.sendContinuousValue(3500, 0, 0, 0, 0)
                     time.sleep(15)
                     while send.imu_value_Yaw < 15:
                         send.sendContinuousValue(0, 0, 0, 5, 0)
                     self.preturn = True
-                elif send.DIOValue == 27 and not self.preturn:
+                elif send.DIOValue == 32 and not self.preturn:
                     send.sendContinuousValue(3500, 0, 0, 0, 0)
                     time.sleep(15)
                     while send.imu_value_Yaw > -15:
                         send.sendContinuousValue(0, 0, 0, -5, 0)
                     self.preturn = True
-                elif send.DIOValue == 31 and not self.preturn:
+                elif send.DIOValue == 34 and not self.preturn:
                     time.sleep(0.1)
                     send.sendContinuousValue(0, 0, 0, 0, 0)
                     time.sleep(5)  
                     self.preturn = True
             self.ball.update()
             self.obs.update()
+            rospy.loginfo(f'obs_size ={self.ball.target_size}')
             rospy.loginfo(f'obs_size ={self.obs.target_size}')
             rospy.loginfo(f'send_theta = {self.send_theta}')
             if not self.ball.get_target:
@@ -155,7 +167,9 @@ class United_Soccer:
                     send.sendContinuousValue(1500, 0, 0, 0, 0)
             else:
                 if self.head_y <= 1290:
-                    send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+                    # send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+                    if self.body_auto:
+                        self.walk_switch()
                     time.sleep(1.5)
                     self.attack_obs()
                     if not self.kick:
@@ -165,51 +179,54 @@ class United_Soccer:
                         send.sendHeadMotor(2, self.head_y, 100)
                         time.sleep(1)
                         if self.ball.center.x > 155:
-                            send.sendBodySector(222)
+                            send.sendBodySector(1001)
                         else:
-                            send.sendBodySector(111)
-                        time.sleep(5.5)
-                        self.head_y = 1400
-                        
+                            send.sendBodySector(2001)
+                        time.sleep(10)
+                    self.head_y = 1400    
+                    rospy.loginfo(f'head_y = {self.head_y}')
+                    time.sleep(4)
                     self.init()
                 rospy.loginfo("goto_ball")
                 self.catch_ball()
                 self.ball_go()
-            if send.imu_value_Pitch > 15:
-                send.sendHeadMotor(1, 2048, 0)
-                send.sendHeadMotor(2, 2420, 0)
-                print("forwdddddddddddddddddddddd")
-                send.sendBodyAuto(0, 0, 0, 0, 1, 0)
-                time.sleep(1.5)
-                send.sendBodySector(29)
-                time.sleep(1)
-                send.sendBodySector(1212)
-                time.sleep(19)
-                send.sendBodySector(29)
-                time.sleep(0.01)
-                send.sendBodySector(1)
-                time.sleep(1)
-                self.init()
-            elif send.imu_value_Pitch < -15:
-                send.sendHeadMotor(1, 2048, 0)
-                send.sendHeadMotor(2, 2420, 0)
-                print("backkkkkkkkkkkkkkkkkkkkkkkkkk")
-                send.sendBodyAuto(0, 0, 0, 0, 1, 0)
-                time.sleep(1.5)
-                send.sendBodySector(29)
-                time.sleep(1)
-                send.sendBodySector(1211)
-                time.sleep(10)
-                send.sendBodySector(29)
-                time.sleep(0.01)
-                send.sendBodySector(1)
-                time.sleep(1)
-                self.init()
+            # if send.imu_value_Pitch > 15:
+            #     send.sendHeadMotor(1, 2048, 0)
+            #     send.sendHeadMotor(2, 2420, 0)
+            #     print("forwdddddddddddddddddddddd")
+            #     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+            #     time.sleep(1.5)
+            #     send.sendBodySector(29)
+            #     time.sleep(1)
+            #     send.sendBodySector(1212)
+            #     time.sleep(19)
+            #     send.sendBodySector(29)
+            #     time.sleep(0.01)
+            #     send.sendBodySector(1)
+            #     time.sleep(1)
+            #     self.init()
+            # elif send.imu_value_Pitch < -15:
+            #     send.sendHeadMotor(1, 2048, 0)
+            #     send.sendHeadMotor(2, 2420, 0)
+            #     print("backkkkkkkkkkkkkkkkkkkkkkkkkk")
+            #     send.sendBodyAuto(0, 0, 0, 0, 1, 0)
+            #     time.sleep(1.5)
+            #     send.sendBodySector(29)
+            #     time.sleep(1)
+            #     send.sendBodySector(1211)
+            #     time.sleep(10)
+            #     send.sendBodySector(29)
+            #     time.sleep(0.01)
+            #     send.sendBodySector(1)
+            #     time.sleep(1)
+            #     self.init()
             if self.conut > 1000:
                 send.sendContinuousValue(1500, 0, 0, -4, 0)
         if not send.is_start:
             if not self.first_in:
-                send.sendBodyAuto(2000, 0, 0, 0, 1, 0)
+                # send.sendBodyAuto(2000, 0, 0, 0, 1, 0)
+                if self.body_auto:
+                    self.walk_switch()
                 send.sendHeadMotor(1, 2048, 100)
                 time.sleep(0.01)
                 send.sendHeadMotor(2, 2048, 100)
