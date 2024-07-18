@@ -13,14 +13,12 @@ from Python_API import Sendmessage
 TEST                       = False
 STAND_CORRECT              = False
 #--影像中像素點對到中心對於頭部刻度的角度比例--#
-X_RATIO                    = 64.5
-Y_RATIO                    = 40
+X_RATIO                    = 120
+Y_RATIO                    = 100
 #------------------------------------------#
-GOAL_IMU                   = [23,-23]
-#
 CORRECT                    = [0,    0,      0]
 #                            [大前進, 前進, 小前進, 原地, 小前進,   後退, 大後退]
-FORWARD                    = [2500, 1000,   500,    0,  -500, -1000, -2000]
+FORWARD                    = [2500, 1000,   500,    0,  -1000, -1500, -2000]
 #                            [大左移,左移,小左移, 原地, 小右移,  右移,大右移]
 TRANSLATION                = [2000, 1000,   500,    0,  -500, -1000, -2000]
 #                            [大左旋,左旋, 原地,   右旋,大右旋]
@@ -34,16 +32,19 @@ STRAIGHT_POINT_R           = [          170,          145,          180]
 #                              左 ,  中,  右 |  左,  中,   右
 FOOT                       = [105 , 124, 143, 160, 176, 196]
 #
+FIRST_SHOT_VERTICAL       = 1220
+SHOT_VERTICAL             = 1220
+SHOT_HORIZONTAL_RIGHT     = 1815
+SHOT_HORIZONTAL_LEFT      = 2365
+#
 DODGE_OBS_ANGLE            = 1000
-SHOT_DEGREE_VERTICAL       = 1285
-SHOT_DEGREE_HORIZONTAL     = 2048
 HEAD_ERROR_RANGE_X         = 15
 HEAD_ERROR_RANGE_Y         = 35
 ROTATE_ERROR               = 40 
 #
 DRAW_FUNCTION_FLAG         = True                  #影像繪圖開關
 HEAD_HORIZONTAL            = 2048                  #頭水平
-HEAD_VERTICAL              = 1350                  #頭垂直 
+HEAD_VERTICAL              = 1450                  #頭垂直 
 MAX_HEAD_HORIZONTAL        = 3072                  #頭水平最大
 MIN_HEAD_HORIZONTAL        = 1024                  #頭水平最小
 MAX_HEAD_VERTICAL          = 2048                  #頭垂直最大
@@ -108,12 +109,10 @@ class ObjectInfo:
         return object_idx
 
     def get_obs_object(self):
-        object_idx = None
-        for i in range(self.api.color_mask_subject_cnts[self.color]):
-            if 2000 < self.api.color_mask_subject_size[self.color][i]:
-                object_idx = i
-        
-        return object_idx
+        if self.api.color_mask_subject_size[self.color] != []:
+            max_object_size = max(self.api.color_mask_subject_size[self.color])
+            max_object_idx = self.api.color_mask_subject_size[self.color].index(max_object_size)
+            return max_object_idx if max_object_size > 2000 else None
 
     def get_door_object(self):
         if self.api.color_mask_subject_size[self.color] != []:
@@ -182,8 +181,6 @@ class UnitedSoccer():
         self.now_translation = 0
         self.now_theta       = 0 
         self.imu_error       = 0
-        self.head_horizon_ball = 0
-        self.head_vertical_ball = 0
         self.count           = 0
         self.api.sendSensorReset(1,1,1)
         self.reset_head()
@@ -191,14 +188,16 @@ class UnitedSoccer():
             self.drawImageFunction('start')
         else:
             self.drawImageFunction('init')
-            self.control_head(1, self.head_horizon, 30) 
-            self.control_head(2, self.head_vertical, 30)
+            
     
     def reset_head(self):
         self.search          = 'right'
         #重置頭位置
         self.head_horizon    = HEAD_HORIZONTAL
         self.head_vertical   = HEAD_VERTICAL
+        if not TEST:
+            self.control_head(1, self.head_horizon, 100) 
+            self.control_head(2, self.head_vertical, 100)
         self.search_count    = 0
 
     def drawImageFunction(self,state):
@@ -328,12 +327,13 @@ class UnitedSoccer():
 
     def search_object(self, right_max = 2048-600, left_max = 2048+600, up_max = 2048, down_max = 2048-300 , scale = 30, *,count_flag=False):
     #找球 右->下->左->上
+        rospy.logerr(f"{self.search}")
         if self.search == 'right':
             self.control_head(1, self.head_horizon, scale)
             self.head_horizon -= scale
             if self.head_horizon < right_max:
                 self.head_horizon = right_max
-                self.search = 'down'
+                self.search = 'up'
 
         elif self.search == 'down':
             self.control_head(2, self.head_vertical, scale)
@@ -341,6 +341,8 @@ class UnitedSoccer():
             if self.head_vertical < down_max:
                 self.head_vertical = down_max
                 self.search = 'left'
+                if count_flag:
+                    self.search_count+=1
 
         elif self.search == 'left':
             self.control_head(1, self.head_horizon, scale)
@@ -354,11 +356,10 @@ class UnitedSoccer():
             self.head_vertical += scale
             if self.head_vertical > up_max:
                 self.head_vertical = up_max
-                self.search = 'right'
-                if count_flag:
-                    self.search_count+=1
+                self.search = 'left'
+                
   
-    def trace_object(self, x_target, y_target,*,control_motor = 'double'):
+    def trace_object(self, x_target, y_target,*,control_motor = 'double',scale = 100):
     #追蹤目標物
         if x_target != 0 and y_target != 0:
             self.x_differ = x_target - 160
@@ -370,10 +371,12 @@ class UnitedSoccer():
             #------------#
             self.head_horizon  -= round(self.x_degree * 4096 / 360 * 0.15)
             self.head_vertical -= round(self.y_degree * 4096 / 360 * 0.15)
+            if self.head_vertical < 1150:
+                self.head_vertical = 1150
             if control_motor == 'doble' or 'horizon':
-                self.control_head(1, self.head_horizon, 25)
+                self.control_head(1, self.head_horizon, scale)
             if control_motor == 'doble' or 'vertical':
-                self.control_head(2, self.head_vertical, 25)
+                self.control_head(2, self.head_vertical, scale)
             if abs(160 - x_target) < 5 and abs(120 - y_target) <5:
                 self.object_center = True
             else:
@@ -389,7 +392,10 @@ class UnitedSoccer():
         #左轉修正
             self.forward     = FORWARD[1]+CORRECT[0]
             self.translation = TRANSLATION[3]+CORRECT[1]
-            self.theta       = THETA[1]+CORRECT[2]
+            if self.head_horizon > 2948:
+                self.theta       = THETA[0]+CORRECT[2]
+            else:
+                self.theta       = THETA[1]+CORRECT[2]
             # self.control_walkinggait(FORWARD[3]+CORRECT[0], TRANSLATION[3]+CORRECT[1], THETA[1]+CORRECT[2], 500, 500, 1, 500,500, 1)
             rospy.logdebug("左轉")
             return False
@@ -397,7 +403,10 @@ class UnitedSoccer():
         #右轉修正
             self.forward     = FORWARD[1]+CORRECT[0]
             self.translation = TRANSLATION[3]+CORRECT[1]
-            self.theta       = THETA[3]+CORRECT[2]
+            if self.head_horizon > 1148:
+                self.theta       = THETA[4]+CORRECT[2]
+            else:
+                self.theta       = THETA[3]+CORRECT[2]
             # self.control_walkinggait(FORWARD[3]+CORRECT[0], TRANSLATION[3]+CORRECT[1], THETA[3]+CORRECT[2], 500, 500, 1, 500, 500, 1)
             rospy.logdebug("右轉")
             return False
@@ -407,11 +416,11 @@ class UnitedSoccer():
     #修正機器人與目標的直線距離(轉頭用)
         distance_error = self.head_vertical - goal_degree
         if distance_error > error:
-            return FORWARD[0] + CORRECT[0]
+            return FORWARD[2] + CORRECT[0]
         elif distance_error < -error:
             return FORWARD[4] + CORRECT[0]
         else:
-            return FORWARD[2] + CORRECT[0]
+            return FORWARD[3] + CORRECT[0]
 
     def body_trace_translation(self,goal_degree,error):
     #修正機器人與目標的平移距離(轉頭用)
@@ -420,13 +429,13 @@ class UnitedSoccer():
         if translation_error > 250:
             return TRANSLATION[0] + CORRECT[1]
         elif translation_error < -250:
-            return TRANSLATION[4] + CORRECT[1]
+            return TRANSLATION[6] + CORRECT[1]
         elif translation_error > error:
-            return TRANSLATION[1] + CORRECT[1]
-        elif translation_error < -error:
-            return TRANSLATION[3] + CORRECT[1]
-        else:
             return TRANSLATION[2] + CORRECT[1]
+        elif translation_error < -error:
+            return TRANSLATION[4] + CORRECT[1]
+        else:
+            return TRANSLATION[3] + CORRECT[1]
 
     def imu_correct(self,fix,error_range):
     #讓身體imu回正
@@ -507,37 +516,44 @@ class UnitedSoccer():
                                    #left_max = 2048+600,\
                                    #up_max = 2048,\
                                    down_max = 2048-800,\
-                                   scale = 50)
-                self.count +=1
+                                   scale = 50,\
+                                   count_flag= True)
+                rospy.logerr(f"no ball~~")
             else:
                 self.state = "trace_ball"
-                self.count = 0
+                self.search_count = 0
 
             self.forward     = FORWARD[3]  + CORRECT[0]
             self.translation = TRANSLATION[3] + CORRECT[1]
-            if self.count > 200:
-                self.theta       = THETA[2] + CORRECT[2]
-            else:
+            if self.search_count > 2:
                 self.theta       = THETA[0] + CORRECT[2]
+            else:
+                self.theta       = THETA[2] + CORRECT[2]
 
         elif state == "trace_ball":
         #走到球前
             self.trace_object(self.ball.center.x,self.ball.center.y)
-            if self.body_trace_rotate(60):
-                if self.head_vertical < SHOT_DEGREE_VERTICAL:
+            if self.head_vertical < 1200:
+                self.forward     = FORWARD[4]  + CORRECT[0]
+            elif self.body_trace_rotate(220):
+                if self.head_vertical < FIRST_SHOT_VERTICAL:
                     self.state = "find_obs"
-                    self.head_horizon_ball = self.head_horizon
-                    self.head_vertical_ball = self.head_vertical
                     self.reset_head()
                     self.object_center = False
                     self.walk_change(self.walk_flag)
                 else:
-                    if self.ball.center.y > 40:
-                        self.forward     = FORWARD[0]  + CORRECT[0]
-                    else:
+                    if self.head_vertical > 1300:
                         self.forward     = FORWARD[1]  + CORRECT[0]
+                    else:
+                        self.forward     = FORWARD[2]  + CORRECT[0]
                     self.translation = TRANSLATION[3] + CORRECT[1]
                     self.theta       = THETA[2] + CORRECT[2]
+            else:
+                if not self.ball.get_target:
+                    self.count += 1
+                if self.count > 10 :
+                    self.state = 'find_ball'
+                    self.count = 0
 
         elif state == "find_obs":
             print(self.object_center)
@@ -546,33 +562,29 @@ class UnitedSoccer():
             #找到OBS 或 尋找3次沒找到
                 self.trace_object(self.obs.center.x,self.obs.center.y)
                 if self.object_center:
-                    self.obs_angle_err = -(self.api.imu_value_Yaw + self.api.imu_value_Yaw -(self.head_horizon*SCALE2DEGREE - 180))
+                    self.obs_angle_err = self.api.imu_value_Yaw + (self.head_horizon*SCALE2DEGREE - 180)*0.8
+                    rospy.logerr(f"obs_angle_err:{self.obs_angle_err}")
+                    rospy.logerr(f"obs_angle_err:{(self.head_horizon*SCALE2DEGREE - 180)}")
                     if abs(self.obs_angle_err) < 10:
                         self.state = "shoot"
                     else:
                         self.state = "shoot_ball_obs"
                     self.object_center = False
-                    self.head_horizon = self.head_horizon_ball
-                    self.head_vertical = self.head_vertical_ball
-                    self.control_head(1, self.head_horizon, 25)
-                    self.control_head(2, self.head_vertical, 25)
-                    rospy.sleep(3)
+                    self.reset_head()
+                    rospy.sleep(2)
             
             elif self.door.get_target:
             #找到door
                 self.trace_object(self.door.center.x,self.door.center.y)
                 if self.object_center:
-                    if abs(self.obs_angle_err) < 10:
+                    self.door_angle_err = self.api.imu_value_Yaw + (self.head_horizon*SCALE2DEGREE - 180)*0.8
+                    if abs(self.door_angle_err) < 10:
                         self.state = "shoot"
                     else:
                         self.state = "shoot_ball_door"
-                    self.door_angle_err = -(self.api.imu_value_Yaw + self.api.imu_value_Yaw-(self.head_horizon*SCALE2DEGREE - 180))
                     self.object_center = False
-                    self.head_horizon = self.head_horizon_ball
-                    self.head_vertical = self.head_vertical_ball
-                    self.control_head(1, self.head_horizon, 25)
-                    self.control_head(2, self.head_vertical, 25)
-                    rospy.sleep(3)
+                    self.reset_head()
+                    rospy.sleep(2)
             else:
             #找OBS or DOOR
                 self.search_object(right_max = 2048-600-self.search_count*50,\
@@ -581,59 +593,103 @@ class UnitedSoccer():
                                    down_max = 2048-800,\
                                    scale = 50,\
                                    count_flag=True)
+                
         elif state == "shoot_ball_obs" or state == "shoot_ball_door":
-            self.trace_object(self.ball.center.x,self.ball.center.y) 
+            self.trace_object(self.ball.center.x,self.ball.center.y)
             if self.state == "shoot_ball_door":
                 rospy.logwarn(f"door_angle_err:{self.door_angle_err}")
                 if abs(self.door_angle_err + self.api.imu_value_Yaw) < 3:
                     self.theta = THETA[2] + CORRECT[2]
                 else:
-                    self.theta = self.imu_correct(self.door_angle_err,10)
+                    self.theta = self.imu_correct(self.door_angle_err,15)
                 
             elif self.state == "shoot_ball_obs" :
                 rospy.logwarn(f"obs_angle_err:{self.obs_angle_err}")
-                if abs(self.obs_angle_err + self.api.imu_value_Yaw) < 3:
+                if abs(self.api.imu_value_Yaw - self.obs_angle_err) < 3:
                     self.theta = THETA[2] + CORRECT[2]
                 else:
-                    self.theta = self.imu_correct(self.obs_angle_err,10)
+                    self.theta = self.imu_correct(self.obs_angle_err,15)
 
-            self.forward = self.body_trace_straight(SHOT_DEGREE_VERTICAL,3)
-            self.now_translation = self.body_trace_translation(SHOT_DEGREE_HORIZONTAL,10)
-            rospy.logwarn(f"horizon_err:{abs(self.head_horizon - SHOT_DEGREE_HORIZONTAL)}")
-            rospy.logwarn(f"vertical_err:{abs(self.head_vertical - SHOT_DEGREE_VERTICAL)}")
-            if abs(self.api.imu_value_Yaw - self.obs_angle_err) < 5 and \
-               abs(self.head_horizon - SHOT_DEGREE_HORIZONTAL) < 5 and \
-               abs(self.head_vertical - SHOT_DEGREE_VERTICAL) < 20:
-                
-                self.walk_change(self.walk_flag)
+            if not self.ball.get_target or self.head_horizon >2448 or self.head_horizon < 1648:
+                # self.count -= 1
+                rospy.logwarn(f"aaa")
+                self.forward     = FORWARD[5] + CORRECT[0]
+                if self.head_horizon > 2448:
+                    self.translation = TRANSLATION[1] + CORRECT[1]
+                elif self.head_horizon < 1648:
+                    self.translation = TRANSLATION[5] + CORRECT[1] 
+
+            elif self.head_vertical < SHOT_VERTICAL+50:
+                rospy.logwarn(f"bbb")
+                if abs(self.theta) > THETA[1] :
+                    self.forward     = FORWARD[4] + CORRECT[0]
+                else:    
+                    self.forward     = FORWARD[2] + CORRECT[0]
                 if self.ball.center.x > 160:
-                    self.api.sendBodySector(1001)
-                    rospy.sleep(10)
+                    self.translation = self.body_trace_translation(SHOT_HORIZONTAL_RIGHT,5)
                 else:
-                    self.api.sendBodySector(2001)
-                    rospy.sleep(10)
-                self.init()
+                    self.translation = self.body_trace_translation(SHOT_HORIZONTAL_LEFT,5)
+            else:
+                rospy.logwarn(f"ccc")
+                if self.head_horizon > 2448 or self.head_horizon < 1648:
+                    self.forward     = FORWARD[4] + CORRECT[0]
+                else:
+                    self.forward     = self.body_trace_straight(SHOT_VERTICAL,8)
+
+                self.translation = self.body_trace_translation(2048,5)
+            
+
+            if abs(self.api.imu_value_Yaw - self.obs_angle_err) < 20 and \
+                abs(self.head_vertical - (SHOT_VERTICAL)) < 10:
+                self.count += 1
+                if self.count > 3:
+                    if self.head_horizon > 2048:
+                        self.reset_head()
+                        self.walk_change(self.walk_flag)
+                        if self.ball.center.x < 110:
+                            self.api.sendBodySector(2001)
+                            rospy.sleep(7)
+                            self.init()
+                        else:
+                            self.api.sendBodySector(2002)
+                            rospy.sleep(7)
+                            self.init()
+                    else:
+                        self.reset_head()
+                        self.walk_change(self.walk_flag)
+                        if self.ball.center.x < 180:
+                            self.api.sendBodySector(1002)
+                            rospy.sleep(7)
+                            self.init()
+                        else:
+                            self.api.sendBodySector(1001)
+                            rospy.sleep(7)
+                            self.init()
+
+                        
 
         elif state == "shoot":
 
-            if self.ball.center.x > 160:
-                if self.ball.center.x < RIGHT_POINT[0]:
-                    self.forward = FORWARD[3] + CORRECT[0]
-                    self.translation = TRANSLATION[4] + CORRECT[1]
-                    self.theta = THETA[2] + CORRECT[2]
-                else:
-                    self.walk_change(self.walk_flag)
-                    self.api.sendBodySector(1001)
-                    rospy.sleep(10)
-                    self.init()
+            if self.ball.center.x > 160 and self.ball.center.x < 180:
+                self.walk_change(self.walk_flag)
+                self.api.sendBodySector(1002)
+                rospy.sleep(7)
+                self.init()
+            elif self.ball.center.x > 180:
+                self.walk_change(self.walk_flag)
+                self.api.sendBodySector(1001)
+                rospy.sleep(7)
+                self.init()
+            elif self.ball.center.x < 110:
+                self.walk_change(self.walk_flag)
+                self.api.sendBodySector(2001)
+                rospy.sleep(7)
+                self.init()
             else:
-                if self.ball.center.x < LEFT_POINT[0]:
-                    pass
-                else:
-                    self.walk_change(self.walk_flag)
-                    self.api.sendBodySector(2001)
-                    rospy.sleep(10)
-                    self.init()
+                self.walk_change(self.walk_flag)
+                self.api.sendBodySector(2002)
+                rospy.sleep(7)
+                self.init()
 
     # def imu_error_reset(self):
     #     self.imu_error = self.imu_error + self.api.imu_value_Yaw 
