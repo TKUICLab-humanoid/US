@@ -22,7 +22,7 @@ FORWARD                    = [2500, 1000,   500,    0,  -1000, -1500, -2000]
 #                            [大左移,左移,小左移, 原地, 小右移,  右移,大右移]
 TRANSLATION                = [2000, 1000,   500,    0,  -500, -1000, -2000]
 #                            [大左旋,左旋, 原地,   右旋,大右旋]
-THETA                      = [   7,    3,    0,    -3,    -7]
+THETA                      = [   7,    4,    0,    -4,    -7]
 #                            [kick_center.x,kick_center.y,shot_center.x]
 LEFT_POINT                 = [          130,          170,          195]
 RIGHT_POINT                = [          170,          150,          80]
@@ -124,7 +124,7 @@ class ObjectInfo:
         object_idx = None
         for i in range(self.api.color_mask_subject_cnts[self.color]):
             length_width_diff = abs(abs(self.api.color_mask_subject_XMax[self.color][i] - self.api.color_mask_subject_XMin[self.color][i]) - abs(self.api.color_mask_subject_YMax[self.color][i] - self.api.color_mask_subject_YMin[self.color][i]))
-            if 500 < self.api.color_mask_subject_size[self.color][i] and length_width_diff < 12:
+            if 500 < self.api.color_mask_subject_size[self.color][i] < 2000 and length_width_diff < 12:
                 object_idx = i
         
         return object_idx
@@ -162,6 +162,8 @@ class UnitedSoccer():
         self.obs_left   = ObjectInfo( "Blue"  , 'OBS_left', self.api)
         self.obs        = ObjectInfo( "Blue"  , 'OBS', self.api)
         self.door       = ObjectInfo( "Red" , 'Door', self.api)
+        self.t          = 0
+        self.t2         = 0 
         self.init()
         
     def init(self):
@@ -196,8 +198,12 @@ class UnitedSoccer():
         self.head_horizon    = HEAD_HORIZONTAL
         self.head_vertical   = HEAD_VERTICAL
         if not TEST:
-            self.control_head(1, self.head_horizon, 100) 
-            self.control_head(2, self.head_vertical, 100)
+            if self.state == "shoot" or self.state == "shoot_ball_obs" or self.state == "shoot_ball_door":
+                self.control_head(1, self.head_horizon, 100) 
+                self.control_head(2, SHOT_VERTICAL, 100)
+            else:
+                self.control_head(1, self.head_horizon, 100) 
+                self.control_head(2, self.head_vertical, 100)
         self.search_count    = 0
 
     def drawImageFunction(self,state):
@@ -340,7 +346,7 @@ class UnitedSoccer():
             self.head_vertical -= scale
             if self.head_vertical < down_max:
                 self.head_vertical = down_max
-                self.search = 'left'
+                self.search = 'right'
                 if count_flag:
                     self.search_count+=1
 
@@ -349,7 +355,7 @@ class UnitedSoccer():
             self.head_horizon += scale
             if self.head_horizon > left_max:
                 self.head_horizon = left_max
-                self.search = 'up'
+                self.search = 'down'
 
         elif self.search == 'up':
             self.control_head(2, self.head_vertical, scale)
@@ -514,46 +520,44 @@ class UnitedSoccer():
             if not self.ball.get_target:
                 self.search_object(#right_max = 2048-600,\
                                    #left_max = 2048+600,\
-                                   #up_max = 2048,\
+                                   up_max = 1648,\
                                    down_max = 2048-800,\
-                                   scale = 50,\
-                                   count_flag= True)
+                                   scale = 40,\
+                                   count_flag=True)
                 rospy.logerr(f"no ball~~")
-            else:
-                self.state = "trace_ball"
-                self.search_count = 0
-
-            self.forward     = FORWARD[3]  + CORRECT[0]
-            self.translation = TRANSLATION[3] + CORRECT[1]
-            if self.search_count > 2:
-                self.theta       = THETA[0] + CORRECT[2]
-            else:
-                self.theta       = THETA[2] + CORRECT[2]
-
-        elif state == "trace_ball":
-        #走到球前
-            self.trace_object(self.ball.center.x,self.ball.center.y)
-            if self.head_vertical < 1200:
-                self.forward     = FORWARD[4]  + CORRECT[0]
-            elif self.body_trace_rotate(220):
-                if self.head_vertical < FIRST_SHOT_VERTICAL:
-                    self.state = "find_obs"
-                    self.reset_head()
-                    self.object_center = False
-                    self.walk_change(self.walk_flag)
+                self.forward     = FORWARD[2]  + CORRECT[0]
+                self.translation = TRANSLATION[3] + CORRECT[1]
+                if self.search_count == 1:
+                    self.theta       = THETA[0] + CORRECT[2]
+                    self.t2 = rospy.get_time()
+                    rospy.logerr(f"turn right t:{self.t2-self.t}")
+                    if self.t2-self.t > 2:
+                        self.search_count = 0
+                    
                 else:
-                    if self.head_vertical > 1300:
-                        self.forward     = FORWARD[1]  + CORRECT[0]
-                    else:
-                        self.forward     = FORWARD[2]  + CORRECT[0]
-                    self.translation = TRANSLATION[3] + CORRECT[1]
                     self.theta       = THETA[2] + CORRECT[2]
+                    self.t = rospy.get_time()
+                    rospy.logerr(f"t:{self.t}")
+                    
             else:
-                if not self.ball.get_target:
-                    self.count += 1
-                if self.count > 10 :
-                    self.state = 'find_ball'
-                    self.count = 0
+                self.search_count = 0
+                self.trace_object(self.ball.center.x,self.ball.center.y)
+                rospy.logwarn(f"go to ball~~")
+                if self.head_vertical < FIRST_SHOT_VERTICAL-20:
+                    self.forward     = FORWARD[4]  + CORRECT[0]
+                elif self.body_trace_rotate(220):
+                    if self.head_vertical < FIRST_SHOT_VERTICAL:
+                        self.state = "find_obs"
+                        self.reset_head()
+                        self.object_center = False
+                        self.walk_change(self.walk_flag)
+                    else:
+                        if self.head_vertical > 1300:
+                            self.forward     = FORWARD[1]  + CORRECT[0]
+                        else:
+                            self.forward     = FORWARD[2]  + CORRECT[0]
+                        self.translation = TRANSLATION[3] + CORRECT[1]
+                        self.theta       = THETA[2] + CORRECT[2]
 
         elif state == "find_obs":
             print(self.object_center)
@@ -614,14 +618,20 @@ class UnitedSoccer():
                 # self.count -= 1
                 rospy.logwarn(f"aaa")
                 self.forward     = FORWARD[5] + CORRECT[0]
-                if self.head_horizon > 2448:
+                if self.head_horizon > 2648:
                     self.translation = TRANSLATION[1] + CORRECT[1]
+                    self.count -= 1
+                elif self.head_horizon > 2448:
+                    self.translation = TRANSLATION[2] + CORRECT[1]
+                elif self.head_horizon < 1448:
+                    self.translation = TRANSLATION[5] + CORRECT[1]
+                    self.count -= 1
                 elif self.head_horizon < 1648:
-                    self.translation = TRANSLATION[5] + CORRECT[1] 
+                    self.translation = TRANSLATION[4] + CORRECT[1]
 
             elif self.head_vertical < SHOT_VERTICAL+50:
                 rospy.logwarn(f"bbb")
-                if abs(self.theta) > THETA[1] :
+                if abs(self.theta) > THETA[1] or self.head_vertical < SHOT_VERTICAL:
                     self.forward     = FORWARD[4] + CORRECT[0]
                 else:    
                     self.forward     = FORWARD[2] + CORRECT[0]
@@ -640,11 +650,12 @@ class UnitedSoccer():
             
 
             if abs(self.api.imu_value_Yaw - self.obs_angle_err) < 20 and \
+                (not self.head_horizon > 2648 or not self.head_horizon < 1448) and \
                 abs(self.head_vertical - (SHOT_VERTICAL)) < 10:
                 self.count += 1
                 if self.count > 3:
-                    if self.head_horizon > 2048:
-                        self.reset_head()
+                    self.reset_head()
+                    if self.ball.center.x < 160:
                         self.walk_change(self.walk_flag)
                         if self.ball.center.x < 110:
                             self.api.sendBodySector(2001)
@@ -655,7 +666,6 @@ class UnitedSoccer():
                             rospy.sleep(7)
                             self.init()
                     else:
-                        self.reset_head()
                         self.walk_change(self.walk_flag)
                         if self.ball.center.x < 180:
                             self.api.sendBodySector(1002)
@@ -691,10 +701,6 @@ class UnitedSoccer():
                 rospy.sleep(7)
                 self.init()
 
-    # def imu_error_reset(self):
-    #     self.imu_error = self.imu_error + self.api.imu_value_Yaw 
-    #     self.api.sendSensorReset(1,1,1)
-
     def main(self): 
         if self.api.is_start:
             self.object_update()
@@ -705,7 +711,7 @@ class UnitedSoccer():
             self.control_walkinggait(self.forward,\
                                       self.translation,\
                                       self.theta,\
-                                      100, 50,0.5,200,50,0.5) 
+                                      50, 50,0.5,100,50,0.5) 
         else:
             rospy.logdebug('strategy close')
             if TEST:
