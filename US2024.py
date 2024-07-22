@@ -433,9 +433,9 @@ class UnitedSoccer():
         translation_error = self.head_horizon - goal_degree
         # print(translation_error,goal_degree)
         if translation_error > 250:
-            return TRANSLATION[0] + CORRECT[1]
+            return TRANSLATION[1] + CORRECT[1]
         elif translation_error < -250:
-            return TRANSLATION[6] + CORRECT[1]
+            return TRANSLATION[5] + CORRECT[1]
         elif translation_error > error:
             return TRANSLATION[2] + CORRECT[1]
         elif translation_error < -error:
@@ -520,7 +520,7 @@ class UnitedSoccer():
             if not self.ball.get_target:
                 self.search_object(#right_max = 2048-600,\
                                    #left_max = 2048+600,\
-                                   up_max = 1648,\
+                                   up_max = 1848,\
                                    down_max = 2048-800,\
                                    scale = 40,\
                                    count_flag=True)
@@ -573,6 +573,7 @@ class UnitedSoccer():
                         self.state = "shoot"
                     else:
                         self.state = "shoot_ball_obs"
+                        self.now_forward = FORWARD[4] + CORRECT[0] 
                     self.object_center = False
                     self.reset_head()
                     rospy.sleep(2)
@@ -620,12 +621,18 @@ class UnitedSoccer():
                 self.forward     = FORWARD[5] + CORRECT[0]
                 if self.head_horizon > 2648:
                     self.translation = TRANSLATION[1] + CORRECT[1]
-                    self.count -= 1
+                    if self.count <0:
+                        self.count = 0  
+                    else:
+                        self.count -= 1
                 elif self.head_horizon > 2448:
                     self.translation = TRANSLATION[2] + CORRECT[1]
                 elif self.head_horizon < 1448:
                     self.translation = TRANSLATION[5] + CORRECT[1]
-                    self.count -= 1
+                    if self.count <0:
+                        self.count = 0  
+                    else:
+                        self.count -= 1
                 elif self.head_horizon < 1648:
                     self.translation = TRANSLATION[4] + CORRECT[1]
 
@@ -657,7 +664,9 @@ class UnitedSoccer():
                     self.reset_head()
                     if self.ball.center.x < 160:
                         self.walk_change(self.walk_flag)
-                        if self.ball.center.x < 110:
+                        rospy.logerr(f"{self.ball.center.x}")
+                        rospy.sleep(2)
+                        if self.ball.center.x < 100:
                             self.api.sendBodySector(2001)
                             rospy.sleep(7)
                             self.init()
@@ -667,6 +676,8 @@ class UnitedSoccer():
                             self.init()
                     else:
                         self.walk_change(self.walk_flag)
+                        rospy.logerr(f"{self.ball.center.x}")
+                        rospy.sleep(2)
                         if self.ball.center.x < 180:
                             self.api.sendBodySector(1002)
                             rospy.sleep(7)
