@@ -124,9 +124,8 @@ class ObjectInfo:
         object_idx = None
         for i in range(self.api.color_mask_subject_cnts[self.color]):
             length_width_diff = abs(abs(self.api.color_mask_subject_XMax[self.color][i] - self.api.color_mask_subject_XMin[self.color][i]) - abs(self.api.color_mask_subject_YMax[self.color][i] - self.api.color_mask_subject_YMin[self.color][i]))
-            if 500 < self.api.color_mask_subject_size[self.color][i] < 2000 and length_width_diff < 12:
+            if 100 < self.api.color_mask_subject_size[self.color][i] < 2000 and length_width_diff < 12:
                 object_idx = i
-        
         return object_idx
 
     def update(self):
@@ -188,6 +187,7 @@ class UnitedSoccer():
         self.reset_head()
         if TEST:
             self.drawImageFunction('start')
+            rospy.logerr(f"ball_size:{self.ball.target_size}")
         else:
             self.drawImageFunction('init')
             
@@ -545,7 +545,7 @@ class UnitedSoccer():
                 rospy.logwarn(f"go to ball~~")
                 if self.head_vertical < FIRST_SHOT_VERTICAL-20:
                     self.forward     = FORWARD[4]  + CORRECT[0]
-                elif self.body_trace_rotate(220):
+                elif self.body_trace_rotate(200):
                     if self.head_vertical < FIRST_SHOT_VERTICAL:
                         self.state = "find_obs"
                         self.reset_head()
@@ -568,7 +568,7 @@ class UnitedSoccer():
                 if self.object_center:
                     self.obs_angle_err = self.api.imu_value_Yaw + (self.head_horizon*SCALE2DEGREE - 180)*0.8
                     rospy.logerr(f"obs_angle_err:{self.obs_angle_err}")
-                    rospy.logerr(f"obs_angle_err:{(self.head_horizon*SCALE2DEGREE - 180)}")
+                    rospy.logerr(f"head_angle:{(self.head_horizon*SCALE2DEGREE - 180)}")
                     if abs(self.obs_angle_err) < 10:
                         self.state = "shoot"
                     else:
@@ -662,11 +662,15 @@ class UnitedSoccer():
                 self.count += 1
                 if self.count > 3:
                     self.reset_head()
+                    rospy.sleep(0.1)
+                    self.walk_change(self.walk_flag)
+                    self.object_update()
+                    rospy.sleep(5)
                     if self.ball.center.x < 160:
-                        self.walk_change(self.walk_flag)
-                        rospy.logerr(f"{self.ball.center.x}")
-                        rospy.sleep(2)
-                        if self.ball.center.x < 100:
+                        # self.walk_change(self.walk_flag)
+                        rospy.logerr(f"ball_x:{self.ball.center.x}")
+                        # rospy.sleep(2)
+                        if self.ball.center.x <= 150:
                             self.api.sendBodySector(2001)
                             rospy.sleep(7)
                             self.init()
@@ -675,10 +679,10 @@ class UnitedSoccer():
                             rospy.sleep(7)
                             self.init()
                     else:
-                        self.walk_change(self.walk_flag)
-                        rospy.logerr(f"{self.ball.center.x}")
-                        rospy.sleep(2)
-                        if self.ball.center.x < 180:
+                        # self.walk_change(self.walk_flag)
+                        rospy.logerr(f"ball_x:{self.ball.center.x}")
+                        # rospy.sleep(2)
+                        if self.ball.center.x < 170:
                             self.api.sendBodySector(1002)
                             rospy.sleep(7)
                             self.init()
@@ -686,31 +690,39 @@ class UnitedSoccer():
                             self.api.sendBodySector(1001)
                             rospy.sleep(7)
                             self.init()
+                    self.api.sendBodySector(29)
+                    rospy.sleep(1)
 
                         
 
         elif state == "shoot":
 
-            if self.ball.center.x > 160 and self.ball.center.x < 180:
+            if self.ball.center.x > 160 and self.ball.center.x < 165:
                 self.walk_change(self.walk_flag)
+                rospy.logerr(f"ball_x:{self.ball.center.x}")
                 self.api.sendBodySector(1002)
                 rospy.sleep(7)
                 self.init()
-            elif self.ball.center.x > 180:
+            elif self.ball.center.x > 165:
                 self.walk_change(self.walk_flag)
+                rospy.logerr(f"ball_x:{self.ball.center.x}")
                 self.api.sendBodySector(1001)
                 rospy.sleep(7)
                 self.init()
-            elif self.ball.center.x < 110:
+            elif self.ball.center.x < 155:
                 self.walk_change(self.walk_flag)
+                rospy.logerr(f"ball_x:{self.ball.center.x}")
                 self.api.sendBodySector(2001)
                 rospy.sleep(7)
                 self.init()
             else:
                 self.walk_change(self.walk_flag)
+                rospy.logerr(f"ball_x:{self.ball.center.x}")
                 self.api.sendBodySector(2002)
                 rospy.sleep(7)
                 self.init()
+            self.api.sendBodySector(29)
+            rospy.sleep(1)
 
     def main(self): 
         if self.api.is_start:
