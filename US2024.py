@@ -32,7 +32,7 @@ STRAIGHT_POINT_R           = [          170,          145,          180]
 #                              左 ,  中,  右 |  左,  中,   右
 FOOT                       = [105 , 124, 143, 160, 176, 196]
 #
-FIRST_SHOT_VERTICAL       = 1220
+FIRST_SHOT_VERTICAL       = 1250
 SHOT_VERTICAL             = 1220
 SHOT_HORIZONTAL_RIGHT     = 1815
 SHOT_HORIZONTAL_LEFT      = 2365
@@ -209,6 +209,7 @@ class UnitedSoccer():
     def drawImageFunction(self,state):
     #繪圖
         rospy.loginfo(f"now state:{self.state}")
+        rospy.loginfo(f"walk_flag:{self.walk_flag}")
         rospy.loginfo(f"水平刻度:{self.head_horizon},垂直刻度:{self.head_vertical}")
         if self.ball.get_target:
             rospy.logdebug(f"ball.target_size:{self.ball.target_size}")
@@ -317,8 +318,12 @@ class UnitedSoccer():
 
         if self.now_translation < translation:
             self.now_translation += add_translation
+            if self.head_horizon > 1948:
+                self.now_translation += add_translation*2
         elif self.now_translation > translation:
             self.now_translation -= reduce_translation
+            if self.head_horizon < 2148:
+                self.now_translation -= reduce_translation*2
         else:
             self.now_translation = translation
 
@@ -398,7 +403,7 @@ class UnitedSoccer():
         #左轉修正
             self.forward     = FORWARD[1]+CORRECT[0]
             self.translation = TRANSLATION[3]+CORRECT[1]
-            if self.head_horizon > 2948:
+            if self.head_horizon > 2648:
                 self.theta       = THETA[0]+CORRECT[2]
             else:
                 self.theta       = THETA[1]+CORRECT[2]
@@ -409,14 +414,19 @@ class UnitedSoccer():
         #右轉修正
             self.forward     = FORWARD[1]+CORRECT[0]
             self.translation = TRANSLATION[3]+CORRECT[1]
-            if self.head_horizon > 1148:
+            if self.head_horizon > 1448:
                 self.theta       = THETA[4]+CORRECT[2]
             else:
                 self.theta       = THETA[3]+CORRECT[2]
             # self.control_walkinggait(FORWARD[3]+CORRECT[0], TRANSLATION[3]+CORRECT[1], THETA[3]+CORRECT[2], 500, 500, 1, 500, 500, 1)
             rospy.logdebug("右轉")
             return False
-        return True
+        else:
+            self.forward     = FORWARD[1]+CORRECT[0]
+            self.translation = TRANSLATION[3]+CORRECT[1]
+            self.theta       = THETA[3]+CORRECT[2]
+            rospy.logdebug("直走")
+            return True
 
     def body_trace_straight(self,goal_degree,error):
     #修正機器人與目標的直線距離(轉頭用)
@@ -464,12 +474,12 @@ class UnitedSoccer():
         return THETA[2] + CORRECT[2]
 
     def walk_change(self,walk_flag):
-        rospy.sleep(0.5)
+        # rospy.sleep(1)
         if walk_flag:
         #停下
             self.walk_flag = False
             self.api.sendBodyAuto(0, 0, 0, 0, 1, 0)
-            rospy.sleep(2.5)
+            rospy.sleep(1.5)
             self.api.sendBodySector(29)
             rospy.sleep(1)
             if STAND_CORRECT:
@@ -543,9 +553,9 @@ class UnitedSoccer():
                 self.search_count = 0
                 self.trace_object(self.ball.center.x,self.ball.center.y)
                 rospy.logwarn(f"go to ball~~")
-                if self.head_vertical < FIRST_SHOT_VERTICAL-20:
-                    self.forward     = FORWARD[4]  + CORRECT[0]
-                elif self.body_trace_rotate(200):
+                if self.head_vertical < FIRST_SHOT_VERTICAL-20 or self.head_horizon > 2648 or self.head_horizon < 1448:
+                    self.forward     = FORWARD[5]  + CORRECT[0]
+                elif self.body_trace_rotate(220):
                     if self.head_vertical < FIRST_SHOT_VERTICAL:
                         self.state = "find_obs"
                         self.reset_head()
@@ -657,10 +667,10 @@ class UnitedSoccer():
             
 
             if abs(self.api.imu_value_Yaw - self.obs_angle_err) < 20 and \
-                (not self.head_horizon > 2648 or not self.head_horizon < 1448) and \
+                (not self.head_horizon > 2448 or not self.head_horizon < 1648) and \
                 abs(self.head_vertical - (SHOT_VERTICAL)) < 10:
                 self.count += 1
-                if self.count > 3:
+                if self.count > 2:
                     self.reset_head()
                     rospy.sleep(0.1)
                     self.walk_change(self.walk_flag)
@@ -671,24 +681,24 @@ class UnitedSoccer():
                         rospy.logerr(f"ball_x:{self.ball.center.x}")
                         # rospy.sleep(2)
                         if self.ball.center.x <= 150:
-                            self.api.sendBodySector(2001)
-                            rospy.sleep(7)
+                            self.api.sendBodySector(100)
+                            rospy.sleep(15)
                             self.init()
                         else:
-                            self.api.sendBodySector(2002)
-                            rospy.sleep(7)
+                            self.api.sendBodySector(100)
+                            rospy.sleep(15)
                             self.init()
                     else:
                         # self.walk_change(self.walk_flag)
                         rospy.logerr(f"ball_x:{self.ball.center.x}")
                         # rospy.sleep(2)
                         if self.ball.center.x < 170:
-                            self.api.sendBodySector(1002)
-                            rospy.sleep(7)
+                            self.api.sendBodySector(200)
+                            rospy.sleep(15)
                             self.init()
                         else:
-                            self.api.sendBodySector(1001)
-                            rospy.sleep(7)
+                            self.api.sendBodySector(200)
+                            rospy.sleep(15)
                             self.init()
                     self.api.sendBodySector(29)
                     rospy.sleep(1)
@@ -700,26 +710,26 @@ class UnitedSoccer():
             if self.ball.center.x > 160 and self.ball.center.x < 165:
                 self.walk_change(self.walk_flag)
                 rospy.logerr(f"ball_x:{self.ball.center.x}")
-                self.api.sendBodySector(1002)
-                rospy.sleep(7)
+                self.api.sendBodySector(200)
+                rospy.sleep(15)
                 self.init()
             elif self.ball.center.x > 165:
                 self.walk_change(self.walk_flag)
                 rospy.logerr(f"ball_x:{self.ball.center.x}")
-                self.api.sendBodySector(1001)
-                rospy.sleep(7)
+                self.api.sendBodySector(200)
+                rospy.sleep(15)
                 self.init()
             elif self.ball.center.x < 155:
                 self.walk_change(self.walk_flag)
                 rospy.logerr(f"ball_x:{self.ball.center.x}")
-                self.api.sendBodySector(2001)
-                rospy.sleep(7)
+                self.api.sendBodySector(100)
+                rospy.sleep(15)
                 self.init()
             else:
                 self.walk_change(self.walk_flag)
                 rospy.logerr(f"ball_x:{self.ball.center.x}")
-                self.api.sendBodySector(2002)
-                rospy.sleep(7)
+                self.api.sendBodySector(100)
+                rospy.sleep(15)
                 self.init()
             self.api.sendBodySector(29)
             rospy.sleep(1)
